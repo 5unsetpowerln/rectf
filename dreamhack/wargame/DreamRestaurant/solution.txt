@@ -1,0 +1,7 @@
+ライスに対してCookRiceMenuが呼ばれた瞬間に、
+
+type = noodle(16) & name = SOONDAE_GUKBAP
+type = nood
+
+
+ライスのusleep中に、ヌードルのCookを終わらせる
