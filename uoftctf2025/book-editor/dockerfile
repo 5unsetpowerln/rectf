@@ -1,0 +1,160 @@
+FROM amd64/ubuntu:22.04
+
+ENV DEBIAN_FRONTEND noninteractive
+# ENV TZ Asia/Tokyo
+ENV LLVM_VERSION=15
+ENV GCC_VERSION=11
+
+RUN mkdir /root/tools
+RUN mkdir /root/workspace
+RUN mkdir /root/.config
+
+# WORKDIR /root/workspace
+# COPY build.sh build.sh
+# COPY config.sh config.sh
+# WORKDIR /root
+
+# RUN apt-get install -y --no-install-recommends wget ca-certificates
+RUN apt-get -y update
+RUN apt-get -y full-upgrade
+RUN apt-get -y install make
+RUN apt-get -y install cmake
+RUN apt-get -y install automake
+RUN apt-get -y install meson
+RUN apt-get -y install ninja-build
+RUN apt-get -y install flex
+RUN apt-get -y install hyperfine
+RUN apt-get -y install git
+RUN apt-get -y install xz-utils
+RUN apt-get -y install bzip2
+RUN apt-get -y install wget
+RUN apt-get -y install jupp
+RUN apt-get -y install nano
+RUN apt-get -y install bash-completion
+RUN apt-get -y install less
+RUN apt-get -y install vim
+RUN apt-get -y install joe
+RUN apt-get -y install ssh
+RUN apt-get -y install psmisc
+RUN apt-get -y install python3
+RUN apt-get -y install python3-dev
+RUN apt-get -y install python3-pip
+RUN apt-get -y install python-is-python3
+RUN apt-get -y install libtool libtool-bin libglib2.0-dev
+RUN apt-get -y install apt-transport-https gnupg dialog
+RUN apt-get -y install gnuplot-nox libpixman-1-dev bc
+RUN apt-get -y install gcc-${GCC_VERSION} g++-${GCC_VERSION} gcc-${GCC_VERSION}-plugin-dev gdb lcov
+RUN apt-get -y install clang-${LLVM_VERSION}
+RUN apt-get -y install lld-${LLVM_VERSION} lldb-${LLVM_VERSION} llvm-${LLVM_VERSION}
+RUN apt-get -y install llvm-${LLVM_VERSION}-dev llvm-${LLVM_VERSION}-runtime llvm-${LLVM_VERSION}-tools
+RUN apt-get -y install $([ "$(dpkg --print-architecture)" = "amd64" ] && echo gcc-${GCC_VERSION}-multilib gcc-multilib)
+RUN apt-get -y install $([ "$(dpkg --print-architecture)" = "arm64" ] && echo libcapstone-dev)
+
+# RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${GCC_VERSION} 0 && \
+# update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-${GCC_VERSION} 0 && \
+# update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_VERSION} 0 && \
+# update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${LLVM_VERSION} 0
+RUN apt-get install ca-certificates -y
+RUN apt-get install libssl-dev -y
+RUN apt-get install zlib1g-dev -y
+RUN apt-get install libbz2-dev -y
+RUN apt-get install libreadline-dev -y
+RUN apt-get install libsqlite3-dev -y
+RUN apt-get install curl -y
+RUN apt-get install zip -y
+RUN apt-get install unzip -y
+RUN apt-get install libncurses5-dev -y
+RUN apt-get install libncursesw5-dev -y
+RUN apt-get install tk-dev -y
+RUN apt-get install libxml2-dev -y
+RUN apt-get install libxmlsec1-dev -y
+RUN apt-get install libffi-dev -y
+RUN apt-get install liblzma-dev -y
+RUN apt-get install libyaml-dev -y
+RUN apt-get install tree -y
+RUN apt-get install neovim -y
+RUN apt-get install neofetch -y
+RUN apt-get install openssh-server -y
+RUN apt-get install patchelf -y
+RUN apt-get install elfutils -y
+RUN apt-get install file -y
+RUN apt-get install devscripts -y
+RUN apt-get install fish -y
+RUN apt-get install libjpeg-dev -y
+RUN apt-get install autogen -y
+RUN apt-get install autoconf -y
+RUN apt-get install texinfo -y
+RUN apt-get install libgmp-dev -y
+RUN apt-get install libmpfr-dev -y
+RUN apt-get install libasound2-dev -y
+RUN apt-get install libflac-dev -y
+RUN apt-get install libogg-dev -y
+RUN apt-get install libvorbis-dev -y
+RUN apt-get install libopus-dev -y
+RUN apt-get install pkg-config -y
+RUN apt-get install libc6-dev -y
+RUN apt-get install libfreetype6-dev -y
+RUN apt-get install ltrace -y
+RUN apt-get install afl -y
+RUN apt-get install m4 -y
+RUN apt-get install libseccomp-dev libseccomp2 seccomp -y
+RUN apt-get install ruby-dev -y
+RUN apt-get install gdb -y
+RUN apt-get install ripgrep -y
+RUN rm -rf /var/lib/apt/lists/*
+
+RUN chsh -s /bin/fish
+RUN mkdir /root/.config/fish
+RUN /bin/fish -c "curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher && fisher install oh-my-fish/theme-idan && fisher install sujaybokil/fish-gruvbox"
+RUN git clone https://github.com/pyenv/pyenv.git $HOME/.pyenv
+RUN echo 'set -x PYENV_ROOT /root/.pyenv' >> /root/.config/fish/config.fish
+RUN echo 'set -x PATH  /root/.pyenv/bin $PATH' >> /root/.config/fish/config.fish
+RUN echo 'set -x PATH /root/.pyenv/shims $PATH' >> /root/.config/fish/config.fish
+RUN /root/.pyenv/bin/pyenv install 3.9.20
+RUN /root/.pyenv/bin/pyenv global 3.9.20
+ENV PATH $PATH:/root/.pyenv/shims/
+RUN /root/.pyenv/shims/pip install ptrlib
+RUN /root/.pyenv/shims/pip install pwntools
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+RUN echo 'set -x PATH /root/.cargo/bin $PATH' >> /root/.config/fish/config.fish
+ENV PATH $PATH:/root/.cargo/bin
+RUN cargo install ropr
+RUN cargo install bat
+RUN echo 'alias bat="bat --theme=gruvbox-dark"' >> /root/.config/fish/config.fish
+RUN cargo install eza
+RUN echo 'alias ls="eza"' >> /root/.config/fish/config.fish
+WORKDIR /root/tools
+# RUN git clone https://github.com/pwndbg/pwndbg
+# WORKDIR /root/tools/pwndbg
+# RUN ./setup.sh
+RUN wget -q https://raw.githubusercontent.com/bata24/gef/dev/install.sh -O- | sh
+RUN echo '#!/bin/bash' > /usr/local/bin/ptr
+RUN echo 'gdb -q -p $(pidof $1)' >> /usr/local/bin/ptr
+RUN chmod +x /usr/local/bin/ptr
+RUN echo 'alias ptr="/usr/local/bin/ptr"' >> /root/.config/fish/config.fish
+RUN echo 'set follow-fork-mode parent' >> /root/.gdbinit
+RUN cargo install pwninit
+RUN gem install seccomp-tools --no-document --force
+WORKDIR /root/
+RUN git clone https://github.com/bminor/glibc
+RUN ln -s /root/glibc /root/workspace/glibc
+WORKDIR /root/
+RUN git clone https://github.com/matrix1001/glibc-all-in-one
+RUN ln -s /root/glibc-all-in-one /root/workspace/glibc-all-in-one
+RUN echo 'alias grep="rg"' >> /root/.config/fish/config.fish
+RUN /root/.pyenv/shims/pip install bpython
+RUN echo 'alias bp="bpython"' >> /root/.config/fish/config.fish
+
+ENV LC_CTYPE C.UTF-8
+
+RUN wget https://ftp.gnu.org/gnu/bison/bison-3.5.1.tar.gz && \
+    tar -xvf bison-3.5.1.tar.gz -C /home/${USERNAME}/ && \
+    cd /home/${USERNAME}/bison-3.5.1 && \
+    ./configure && make && make install && make clean
+
+
+
+RUN echo "set -x LC_CTYPE C.UTF-8" >> /root/.config/fish/config.fish
+WORKDIR /root/workspace
+# COPY build.sh build.sh
+# COPY config.sh config.sh
